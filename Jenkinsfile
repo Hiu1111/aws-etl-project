@@ -10,15 +10,30 @@ pipeline {
   }
 
   stages {
-    stage('Install Dependencies') {
+    stage('Checkout') {
       steps {
-        sh 'python3 -m pip install --user psycopg2-binary openpyxl'
+        checkout scm
+      }
+    }
+
+    stage('Setup venv + deps') {
+      steps {
+        sh '''
+          set -e
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install psycopg2-binary openpyxl
+        '''
       }
     }
 
     stage('Create Tables') {
       steps {
         sh '''
+          set -e
+          . .venv/bin/activate
+          ls -la sql
           PGPASSWORD=$DB_PASS psql \
             -h $DB_HOST -p $DB_PORT \
             -U $DB_USER -d $DB_NAME \
@@ -29,7 +44,12 @@ pipeline {
 
     stage('Generate Excel Report') {
       steps {
-        sh 'python3 reports/generate_sales_report.py'
+        sh '''
+          set -e
+          . .venv/bin/activate
+          python reports/generate_sales_report.py
+          ls -la reports
+        '''
       }
     }
   }
