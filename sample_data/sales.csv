@@ -1,4 +1,4 @@
-order_id,customer_id,amount,date
+order_id,customer_id,amount,order_date
 1,101,250,2024-01-10
 2,102,300,2024-01-11
 3,103,,2024-01-12
