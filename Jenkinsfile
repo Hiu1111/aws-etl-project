@@ -41,6 +41,30 @@ pipeline {
         '''
       }
     }
+    stage('Load Data from CSV') {
+        steps {
+            sh '''
+                set -e
+
+                # Clear old data so reruns don't duplicate
+                PGPASSWORD=$DB_PASS psql \
+                    -h $DB_HOST -p $DB_PORT \
+                    -U $DB_USER -d $DB_NAME \
+                    -c "TRUNCATE TABLE sales;"
+
+                # Load CSV from the repo workspace into Postgres
+                PGPASSWORD=$DB_PASS psql \
+                    -h $DB_HOST -p $DB_PORT \
+                    -U $DB_USER -d $DB_NAME \
+                    -c "\\copy sales(order_id,customer_id,amount,date) FROM 'sample_data/sales.csv' WITH (FORMAT csv, HEADER true, NULL '')"
+                      # Debug: show row count
+                PGPASSWORD=$DB_PASS psql \
+                    -h $DB_HOST -p $DB_PORT \
+                    -U $DB_USER -d $DB_NAME \
+                    -c "SELECT COUNT(*) FROM sales;"
+                '''
+        }   
+    }
 
     stage('Generate Excel Report') {
       steps {
