@@ -11,9 +11,7 @@ pipeline {
 
   stages {
     stage('Checkout') {
-      steps {
-        checkout scm
-      }
+      steps { checkout scm }
     }
 
     stage('Setup venv + deps') {
@@ -33,52 +31,68 @@ pipeline {
         sh '''
           set -e
 
-          PGPASSWORD=$DB_PASS psql \
-            -h $DB_HOST -p $DB_PORT \
-            -U $DB_USER -d $DB_NAME \
-            -c "DROP TABLE IF EXISTS sales;"
+          PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "DROP TABLE IF EXISTS sales;"
+          PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "DROP TABLE IF EXISTS sales_staging;"
 
-          PGPASSWORD=$DB_PASS psql \
-            -h $DB_HOST -p $DB_PORT \
-            -U $DB_USER -d $DB_NAME \
-            -c "CREATE TABLE sales (
-                  order_id INT,
-                  customer_id INT,
-                  amount NUMERIC(10,2),
-                  order_date DATE
-                );"
+          # final table includes tax
+          PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+            CREATE TABLE sales (
+              order_id INT,
+              customer_id INT,
+              amount NUMERIC(10,2),
+              tax NUMERIC(10,2),
+              order_date DATE
+            );
+          "
 
-          # Debug: show schema
-          PGPASSWORD=$DB_PASS psql \
-            -h $DB_HOST -p $DB_PORT \
-            -U $DB_USER -d $DB_NAME \
-            -c "\\d sales"
+          # staging table matches raw CSV (no tax)
+          PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+            CREATE TABLE sales_staging (
+              order_id INT,
+              customer_id INT,
+              amount NUMERIC(10,2),
+              order_date DATE
+            );
+          "
+
+          PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "\\d sales"
         '''
       }
     }
 
-    stage('Load Data from CSV') {
+    stage('Load Data from CSV (compute tax)') {
       steps {
         sh '''
           set -e
 
-          # Clear old data so reruns don't duplicate
-          PGPASSWORD=$DB_PASS psql \
-            -h $DB_HOST -p $DB_PORT \
-            -U $DB_USER -d $DB_NAME \
-            -c "TRUNCATE TABLE sales;"
+          # clean both tables
+          PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "TRUNCATE TABLE sales;"
+          PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "TRUNCATE TABLE sales_staging;"
 
-          # Load CSV from the repo workspace into Postgres
-          PGPASSWORD=$DB_PASS psql \
-            -h $DB_HOST -p $DB_PORT \
-            -U $DB_USER -d $DB_NAME \
-            -c "\\copy sales(order_id,customer_id,amount,order_date) FROM 'sample_data/sales.csv' WITH (FORMAT csv, HEADER true, NULL '')"
+          # show how many rows are in the CSV file we are loading (sanity check)
+          echo "CSV line count (including header):"
+          wc -l sample_data/sales.csv || true
+          echo "First 5 lines:"
+          head -5 sample_data/sales.csv || true
 
-          # Debug: confirm row count
-          PGPASSWORD=$DB_PASS psql \
-            -h $DB_HOST -p $DB_PORT \
-            -U $DB_USER -d $DB_NAME \
-            -c "SELECT COUNT(*) AS sales_rows FROM sales;"
+          # load raw CSV into staging (NULL '' handles blank amount)
+          PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME \
+            -c "\\copy sales_staging(order_id,customer_id,amount,order_date) FROM 'sample_data/sales.csv' WITH (FORMAT csv, HEADER true, NULL '')"
+
+          # transform: compute tax and load into final
+          PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+            INSERT INTO sales(order_id, customer_id, amount, tax, order_date)
+            SELECT
+              order_id,
+              customer_id,
+              amount,
+              ROUND(COALESCE(amount,0) * 0.10, 2) AS tax,
+              order_date
+            FROM sales_staging;
+          "
+
+          # debug counts
+          PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "SELECT COUNT(*) AS sales_rows FROM sales;"
         '''
       }
     }
@@ -88,15 +102,8 @@ pipeline {
         sh '''
           set -e
           . .venv/bin/activate
-
-          # Ensure reports folder exists
           mkdir -p reports
-
           python reports/generate_sales_report.py
-
-          echo "Workspace files:"
-          ls -la
-          echo "Reports folder:"
           ls -la reports
         '''
       }
