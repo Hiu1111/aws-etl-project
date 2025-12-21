@@ -56,7 +56,7 @@ pipeline {
 
   post {
     success {
-      archiveArtifacts artifacts: 'reports/*.xlsx', fingerprint: true
+      archiveArtifacts artifacts: 'sales_report.xlsx', fingerprint: true
     }
   }
 }
