@@ -12,7 +12,7 @@ pipeline {
   stages {
     stage('Install Dependencies') {
       steps {
-        sh 'pip install --user psycopg2-binary openpyxl'
+        sh 'python3 -m pip install --user psycopg2-binary openpyxl'
       }
     }
 
@@ -29,7 +29,7 @@ pipeline {
 
     stage('Generate Excel Report') {
       steps {
-        sh 'python reports/generate_sales_report.py'
+        sh 'python3 reports/generate_sales_report.py'
       }
     }
   }
