@@ -1,36 +1,70 @@
-AWS ETL Data Pipeline Project
-An end-to-end automated ETL pipeline that ingests, transforms, and loads sales data into a PostgreSQL database on Amazon RDS, with CI/CD orchestration via Jenkins and automated Excel report generation.
-Tech Stack
-Python SQL AWS Glue AWS Lambda Amazon RDS Amazon S3 Jenkins Terraform CloudFormation
-Architecture Overview
-Raw CSV Data (S3)
-      │
-      ▼
-AWS Glue (Transform + Compute Derived Fields)
-      │
-      ▼
-AWS Lambda (Trigger / Orchestration)
-      │
-      ▼
-PostgreSQL on Amazon RDS (Load)
-      │
-      ▼
-Python + OpenPyExcel (Automated Excel Reports)
-Project Structure
-aws-etl-project/
-├── cloudformation/     # CloudFormation templates for AWS resource provisioning
-├── glue/               # AWS Glue ETL scripts (Python)
-├── lambda/             # Lambda function handlers
-├── reports/            # Generated Excel report outputs
-├── sample_data/        # Sample 500-row sales dataset (CSV)
-├── sql/                # Table creation and query SQL scripts
-├── terraform/          # Terraform IaC for RDS, S3, IAM, Glue, Lambda
-├── Jenkinsfile         # CI/CD pipeline definition
-└── requirements.txt    # Python dependencies
-Features
+# 🛠️ AWS ETL Data Pipeline
 
-Automated ETL Pipeline — ingests raw CSV sales data from S3, applies transformations (e.g. tax computation), and loads clean records into PostgreSQL on RDS
-CI/CD with Jenkins — Jenkinsfile orchestrates pipeline execution, enabling repeatable data refreshes and automated report generation on each run
-AWS Glue Transformations — PySpark/Python Glue jobs compute derived fields and handle data cleaning during transformation
-Infrastructure as Code — full cloud infrastructure provisioned with Terraform and CloudFormation, covering RDS, S3, IAM roles, Glue, and Lambda resources
-Automated Reporting — Python scripts using OpenPyExcel generate formatted Excel reports directly from transformed database records
+An automated end-to-end ETL pipeline that ingests raw sales data, transforms it in the cloud, and loads it into a PostgreSQL database — with CI/CD orchestration and automated Excel reporting.
+
+---
+
+## ⚙️ Tech Stack
+
+| Layer | Tools |
+|---|---|
+| Ingestion | Amazon S3 |
+| Transformation | AWS Glue, Python |
+| Loading | PostgreSQL on Amazon RDS |
+| Orchestration | Jenkins CI/CD, AWS Lambda |
+| Infrastructure | Terraform, CloudFormation |
+| Reporting | Python, OpenPyExcel |
+
+---
+
+## 🔄 Pipeline Flow
+
+```
+S3 (Raw CSV) → AWS Glue (Transform) → RDS PostgreSQL (Load) → Excel Reports
+                                ↑
+                         Jenkins CI/CD
+```
+
+---
+
+## 📁 Project Structure
+
+```
+aws-etl-project/
+├── cloudformation/    # AWS CloudFormation templates
+├── glue/              # Glue ETL transformation scripts
+├── lambda/            # Lambda trigger functions
+├── reports/           # Generated Excel reports
+├── sample_data/       # 500-row sample sales dataset
+├── sql/               # Table creation SQL
+├── terraform/         # Terraform IaC configs
+├── Jenkinsfile        # CI/CD pipeline definition
+└── requirements.txt   # Python dependencies
+```
+
+---
+
+## 🚀 Key Features
+
+- **Automated ETL** — ingests CSV sales data from S3, computes derived fields (e.g. tax), and loads into PostgreSQL on RDS
+- **CI/CD Pipeline** — Jenkins orchestrates repeatable data refreshes and report generation on every run
+- **Infrastructure as Code** — all AWS resources (RDS, S3, IAM, Glue, Lambda) provisioned via Terraform and CloudFormation
+- **Automated Reporting** — Excel reports generated from transformed records using Python and OpenPyExcel
+
+---
+
+## 🛠️ Setup
+
+```bash
+# 1. Provision infrastructure
+cd terraform/ && terraform init && terraform apply
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Upload sample data
+aws s3 cp sample_data/ s3://<your-bucket>/input/ --recursive
+
+# 4. Run the Glue job
+aws glue start-job-run --job-name <your-glue-job-name>
+```
